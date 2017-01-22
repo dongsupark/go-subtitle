@@ -1,0 +1,22 @@
+#!/bin/bash -e
+
+CDIR=$(cd `dirname "$0"` && pwd)
+cd "$CDIR"
+
+export ORG_PATH="github.com/dongsupark"
+export REPO_PATH="${ORG_PATH}/go-subtitle"
+#export VERSION=$(git describe --dirty)
+export VERSION=""
+export GLDFLAGS="-X github.com/dongsupark/go-subtitle/version.Version=${VERSION}"
+export CGO_CPPFLAGS="-Wno-deprecated-declarations"
+
+if [ ! $(command -v go 2>/dev/null) ]; then
+  echo "build: failed to locate Go binaries."
+  exit 1
+fi
+
+echo "Building..."
+CGO_ENABLED=1 go build -o go-subtitle -a -ldflags "${GLDFLAGS}" ${REPO_PATH}
+
+mkdir --parent ./bin
+mv go-subtitle ./bin/
