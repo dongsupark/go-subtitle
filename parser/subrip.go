@@ -20,11 +20,11 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/golang/glog"
 
+	"github.com/dongsupark/go-subtitle/pkg"
 	"github.com/dongsupark/go-subtitle/subtitle"
 )
 
@@ -71,12 +71,12 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 
 		var se subtitle.SubtitleEntry
 
-		se.StartValue = composeTimeDuration(
-			stringToInt(substrs[1]), stringToInt(substrs[2]),
-			stringToInt(substrs[3]), stringToInt(substrs[4]))
-		se.EndValue = composeTimeDuration(
-			stringToInt(substrs[1]), stringToInt(substrs[2]),
-			stringToInt(substrs[3]), stringToInt(substrs[4]))
+		se.StartValue = pkg.ComposeTimeDuration(
+			pkg.StringToInt(substrs[1]), pkg.StringToInt(substrs[2]),
+			pkg.StringToInt(substrs[3]), pkg.StringToInt(substrs[4]))
+		se.EndValue = pkg.ComposeTimeDuration(
+			pkg.StringToInt(substrs[1]), pkg.StringToInt(substrs[2]),
+			pkg.StringToInt(substrs[3]), pkg.StringToInt(substrs[4]))
 
 		se.Text = textLine
 
@@ -108,21 +108,6 @@ func (sr *SubripFormat) Write(fileName string, insub subtitle.Subtitle) error {
 	}
 
 	return nil
-}
-
-func stringToInt(instr string) int {
-	intVal, err := strconv.Atoi(instr)
-	if err != nil {
-		return 0
-	}
-	return intVal
-}
-
-func composeTimeDuration(hourNum, minNum, secNum, msecNum int) time.Duration {
-	return (time.Duration(hourNum) * time.Hour) +
-		(time.Duration(minNum) * time.Minute) +
-		(time.Duration(secNum) * time.Second) +
-		(time.Duration(msecNum) * time.Millisecond)
 }
 
 func timeToSubrip(inTime time.Duration) string {
