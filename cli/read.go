@@ -56,21 +56,25 @@ func runReadCmd(cmd *cobra.Command, args []string) {
 
 	subtitleFormat, err := cmd.PersistentFlags().GetString("format")
 	if err != nil {
+		fmt.Println("unable to get subtitle format")
+		return
+	}
+
+	reader := parser.GetParserReader(subtitleFormat)
+	if reader == nil {
+		fmt.Println("unable to get parser reader")
+		return
+	}
+
+	outSt, err := reader(readFileName)
+	if err != nil {
+		fmt.Printf("parse error reading %s: %v\n", readFileName, err)
 		return
 	}
 
 	parsedText := ""
-	if subtitleFormat == "subrip" || subtitleFormat == "srt" {
-		var subripParser parser.SubripFormat
-		outSt, err := subripParser.Read(readFileName)
-		if err != nil {
-			fmt.Printf("parse error reading %s: %v\n", readFileName, err)
-			return
-		}
-
-		for _, v := range outSt.Subtitles {
-			parsedText += v.Text
-		}
+	for _, v := range outSt.Subtitles {
+		parsedText += v.Text
 	}
 
 	fmt.Printf("Parsed text:\n%s\n", parsedText)

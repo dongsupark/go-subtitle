@@ -20,7 +20,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "github.com/dongsupark/go-subtitle/parser"
+	"github.com/dongsupark/go-subtitle/parser"
+	"github.com/dongsupark/go-subtitle/subtitle"
 )
 
 var (
@@ -56,17 +57,22 @@ func runWriteCmd(cmd *cobra.Command, args []string) {
 
 	subtitleFormat, err := cmd.PersistentFlags().GetString("format")
 	if err != nil {
+		fmt.Println("unable to get subtitle format")
 		return
 	}
 
-	if subtitleFormat == "subrip" || subtitleFormat == "srt" {
-		// TODO: make it work with data provided by user
-		//         var subripParser parser.SubripFormat
-		//         err = subripParser.Write(writeFileName, data)
-		if err != nil {
-			fmt.Printf("parse error writing %s: %v\n", writeFileName, err)
-			return
-		}
+	writer := parser.GetParserWriter(subtitleFormat)
+	if writer == nil {
+		fmt.Println("unable to get parser writer")
+		return
+	}
+
+	// TODO: make it work with data provided by user
+	err = writer(writeFileName, subtitle.Subtitle{})
+	//     err := writer(writeFileName, inSub)
+	if err != nil {
+		fmt.Printf("parse error reading %s: %v\n", readFileName, err)
+		return
 	}
 
 	fmt.Printf("Wrote text to subtitle file %s\n", writeFileName)
