@@ -157,6 +157,6 @@ func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
 }
 
 func timeToSami(inTime time.Duration) string {
-	totalSec := (inTime.Hours() * 3600) + (inTime.Minutes() * 60) + inTime.Seconds()
-	return fmt.Sprintf("%d%03d", totalSec, inTime.Nanoseconds()/1000)
+	totalSec := inTime.Seconds()
+	return fmt.Sprintf("%04d%03d", int(totalSec), int(inTime.Nanoseconds()/1000/1000%1000))
 }

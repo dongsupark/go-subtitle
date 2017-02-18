@@ -112,5 +112,5 @@ func (sr *SubripFormat) Write(fileName string, insub subtitle.Subtitle) error {
 
 func timeToSubrip(inTime time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d,%03d",
-		inTime.Hours(), inTime.Minutes(), inTime.Seconds(), inTime.Nanoseconds()/1000)
+		int(inTime.Hours()), int(inTime.Minutes()), int(inTime.Seconds()), int(inTime.Nanoseconds()/1000%1000))
 }
