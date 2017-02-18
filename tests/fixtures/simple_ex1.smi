@@ -1,0 +1,21 @@
+<SAMI>
+<HEAD>
+<TITLE>example of subtitle in sami format</TITLE>
+<STYLE TYPE="text/css">
+<!--
+P { margin-left:2pt; margin-right:2pt; margin-bottom:1pt;
+    margin-top:1pt; font-size:20pt; text-align:center;
+    font-family:Arial, Sans-serif; font-weight:bold; color:white;
+    }
+.KRCC { Name:korean locale; lang:ko-KR; SAMIType:CC; }
+.ENCC { Name:english locale; lang:en-US; SAMIType:CC; }
+-->
+</STYLE>
+</HEAD>
+<BODY>
+<SYNC Start=0><P Class=KRCC>&nbsp;
+<SYNC Start=20011><P Class=KRCC>
+<i>this is a text</i>
+<SYNC Start=22211><P Class=KRCC>&nbsp;
+</BODY>
+</SAMI>
