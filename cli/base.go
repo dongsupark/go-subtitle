@@ -29,15 +29,7 @@ var (
 
 To get help about a resource or command, please run "go-subtitle help"`,
 	}
-
-	globalFlags = struct {
-		format string
-	}{}
 )
-
-func init() {
-	goSubtitleCmd.PersistentFlags().StringVar(&globalFlags.format, "format", "subrip", "Subtitle format")
-}
 
 func Execute() {
 	if err := goSubtitleCmd.Execute(); err != nil {

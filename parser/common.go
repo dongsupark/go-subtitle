@@ -15,8 +15,18 @@
 package parser
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/dongsupark/go-subtitle/subtitle"
 )
+
+var parserFormats = map[string]string{
+	"subrip": "subrip",
+	"srt":    "subrip",
+	"sami":   "sami",
+	"smi":    "sami",
+}
 
 var parserMap = map[string]interface{}{
 	"subrip": SubripFormat{TypeName: "subrip"},
@@ -60,4 +70,13 @@ func GetParserWriter(formatName string) WriteFunc {
 	}
 
 	return nil
+}
+
+func GetParserFormat(filename string) string {
+	for k, v := range parserFormats {
+		if strings.ToLower(filepath.Ext(filename))[1:] == k {
+			return v
+		}
+	}
+	return ""
 }

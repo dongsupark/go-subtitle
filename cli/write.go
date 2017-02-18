@@ -26,7 +26,7 @@ import (
 
 var (
 	writeCmd = &cobra.Command{
-		Use:   "write --file FILENAME --rawtext DATA",
+		Use:   "write [-f|--file] FILENAME --rawtext DATA",
 		Short: "A command line client for writing a subtitle file",
 		Long: `A CLI for writing a subtitle file
 
@@ -40,8 +40,7 @@ To get help about a resource or command, please run "go-subtitle help"`,
 func init() {
 	goSubtitleCmd.AddCommand(writeCmd)
 
-	writeCmd.Flags().StringVar(&writeFileName, "file", "", "Subtitle file")
-	writeCmd.Flags().StringVar(&writeFileName, "f", "", "Shorthand for --file")
+	writeCmd.Flags().StringVarP(&writeFileName, "file", "f", "", "Subtitle file")
 }
 
 func runWriteCmd(cmd *cobra.Command, args []string) {
@@ -55,8 +54,8 @@ func runWriteCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	subtitleFormat, err := cmd.PersistentFlags().GetString("format")
-	if err != nil {
+	subtitleFormat := parser.GetParserFormat(outputFileName)
+	if subtitleFormat == "" {
 		fmt.Println("unable to get subtitle format")
 		return
 	}
@@ -68,7 +67,7 @@ func runWriteCmd(cmd *cobra.Command, args []string) {
 	}
 
 	// TODO: make it work with data provided by user
-	err = writer(writeFileName, subtitle.Subtitle{})
+	err := writer(writeFileName, subtitle.Subtitle{})
 	//     err := writer(writeFileName, inSub)
 	if err != nil {
 		fmt.Printf("parse error reading %s: %v\n", readFileName, err)

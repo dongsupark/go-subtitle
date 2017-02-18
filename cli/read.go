@@ -25,7 +25,7 @@ import (
 
 var (
 	readCmd = &cobra.Command{
-		Use:   "read --file FILENAME",
+		Use:   "read [-f|--file] FILENAME",
 		Short: "A command line client for reading a subtitle file",
 		Long: `A CLI for reading a subtitle file
 
@@ -39,8 +39,7 @@ To get help about a resource or command, please run "go-subtitle help"`,
 func init() {
 	goSubtitleCmd.AddCommand(readCmd)
 
-	readCmd.Flags().StringVar(&readFileName, "file", "", "Subtitle file")
-	readCmd.Flags().StringVar(&readFileName, "f", "", "Shorthand for --file")
+	readCmd.Flags().StringVarP(&readFileName, "file", "f", "", "Subtitle file")
 }
 
 func runReadCmd(cmd *cobra.Command, args []string) {
@@ -54,8 +53,8 @@ func runReadCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	subtitleFormat, err := cmd.PersistentFlags().GetString("format")
-	if err != nil {
+	subtitleFormat := parser.GetParserFormat(inputFileName)
+	if subtitleFormat == "" {
 		fmt.Println("unable to get subtitle format")
 		return
 	}
