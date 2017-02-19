@@ -20,6 +20,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -44,7 +46,7 @@ To get help about a resource or command, please run "go-subtitle-web help"`,
 	}
 )
 
-const fname = "./tests/fixtures/simple_ex1.srt"
+const fixtureDir = "./tests/fixtures"
 
 func init() {
 	webCommand.PersistentFlags().StringVarP(&globalFlags.WebPort, "port", "p", "8000", "port to serve the web interface")
@@ -58,7 +60,8 @@ func Execute() {
 }
 
 func CommandFunc(cmd *cobra.Command, args []string) {
-	http.HandleFunc("/", handleWebMain)
+	http.HandleFunc("/readsub/", handleReadSub)
+
 	lAddr := fmt.Sprintf("localhost:%s", globalFlags.WebPort)
 	log.Printf("started serving on %q", lAddr)
 	if err := http.ListenAndServe(lAddr, nil); err != nil {
@@ -67,8 +70,10 @@ func CommandFunc(cmd *cobra.Command, args []string) {
 	}
 }
 
-func handleWebMain(w http.ResponseWriter, r *http.Request) {
-	st, err := readSubFromFile(fname)
+func handleReadSub(w http.ResponseWriter, r *http.Request) {
+	fname := strings.SplitN(r.URL.Path, "/", 3)[2]
+
+	st, err := readSubFromFile(path.Join(fixtureDir, fname))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
