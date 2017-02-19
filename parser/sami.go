@@ -15,7 +15,9 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -83,6 +85,8 @@ func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
 			}
 		}
 		if n.Type == html.TextNode {
+			n.Data = stripComments(n.Data)
+
 			inText := strings.TrimSpace(renl.ReplaceAllString(n.Data, " "))
 			if len(inText) == 0 {
 				if samiState == SamiStateSyncEnd {
@@ -93,13 +97,15 @@ func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
 				samiState = SamiStateText
 			}
 		}
+		if n.Type == html.CommentNode {
+			return
+		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			parseNode(c, samiState)
 		}
 	}
 	parseNode(doc, ss)
 
-	fmt.Printf("returning st: %v", st)
 	return st, nil
 }
 
@@ -154,6 +160,25 @@ func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
 	}
 
 	return nil
+}
+
+// strip comments in every text node
+func stripComments(inStr string) string {
+	z := html.NewTokenizer(bytes.NewBufferString(inStr))
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			if err := z.Err(); err != nil && err != io.EOF {
+				return inStr
+			}
+			break
+		}
+		if tt == html.CommentToken {
+			return strings.Replace(inStr, string(z.Raw()), "", -1)
+		}
+	}
+
+	return inStr
 }
 
 func timeToSami(inTime time.Duration) string {
