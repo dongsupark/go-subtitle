@@ -51,7 +51,7 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 	for scanner.Scan() {
 		timeLine := scanner.Text()
 		substrs := reSrtTime.FindStringSubmatch(timeLine)
-		if substrs[0] == "" {
+		if substrs == nil || substrs[0] == "" {
 			continue
 		}
 
