@@ -17,7 +17,7 @@ package subtitle
 import ()
 
 type Subtitle struct {
-	Subtitles []SubtitleEntry
+	Subtitles []SubtitleEntry `json:"subtitle_entry"`
 }
 
 func (st *Subtitle) ToText() string {

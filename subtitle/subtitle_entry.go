@@ -19,9 +19,9 @@ import (
 )
 
 type SubtitleEntry struct {
-	StartValue    time.Duration
-	EndValue      time.Duration
-	DurationValue time.Duration
+	StartValue    time.Duration `json:"start_value"`
+	EndValue      time.Duration `json:"end_value"`
+	DurationValue time.Duration `json:"duration_value"`
 
-	Text string
+	Text string `json:"text"`
 }
