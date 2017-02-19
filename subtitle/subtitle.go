@@ -19,3 +19,12 @@ import ()
 type Subtitle struct {
 	Subtitles []SubtitleEntry
 }
+
+func (st *Subtitle) ToText() string {
+	parsedText := ""
+	for _, v := range st.Subtitles {
+		parsedText += v.Text
+	}
+
+	return parsedText
+}

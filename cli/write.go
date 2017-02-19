@@ -54,23 +54,10 @@ func runWriteCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	subtitleFormat := parser.GetParserFormat(writeFileName)
-	if subtitleFormat == "" {
-		fmt.Println("unable to get subtitle format")
-		return
-	}
-
-	writer := parser.GetParserWriter(subtitleFormat)
-	if writer == nil {
-		fmt.Println("unable to get parser writer")
-		return
-	}
-
 	// TODO: make it work with data provided by user
-	err := writer(writeFileName, subtitle.Subtitle{})
-	//     err := writer(writeFileName, inSub)
+	err := parser.WriteSubToFile(writeFileName, subtitle.Subtitle{})
 	if err != nil {
-		fmt.Printf("parse error reading %s: %v\n", readFileName, err)
+		fmt.Println(err)
 		return
 	}
 

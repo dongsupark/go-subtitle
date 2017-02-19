@@ -15,6 +15,7 @@
 package parser
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -79,4 +80,42 @@ func GetParserFormat(filename string) string {
 		}
 	}
 	return ""
+}
+
+func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
+	subtitleFormat := GetParserFormat(readFileName)
+	if subtitleFormat == "" {
+		return nil, fmt.Errorf("unable to get subtitle format")
+	}
+
+	reader := GetParserReader(subtitleFormat)
+	if reader == nil {
+		return nil, fmt.Errorf("unable to get parser reader")
+	}
+
+	outSt, err := reader(readFileName)
+	if err != nil {
+		return nil, fmt.Errorf("parse error reading %s: %v\n", readFileName, err)
+	}
+
+	return &outSt, nil
+}
+
+func WriteSubToFile(writeFileName string, inSt subtitle.Subtitle) error {
+	subtitleFormat := GetParserFormat(writeFileName)
+	if subtitleFormat == "" {
+		return fmt.Errorf("unable to get subtitle format")
+	}
+
+	writer := GetParserWriter(subtitleFormat)
+	if writer == nil {
+		return fmt.Errorf("unable to get parser writer")
+	}
+
+	err := writer(writeFileName, inSt)
+	if err != nil {
+		return fmt.Errorf("parse error writing %s: %v\n", writeFileName, err)
+	}
+
+	return nil
 }
