@@ -120,11 +120,11 @@ func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
 
 		sStartNode := &html.Node{
 			Type: html.ElementNode,
-			Data: fmt.Sprintf("<SYNC Start=%s>", timeToSami(v.StartValue)),
+			Data: fmt.Sprintf("SYNC Start=%s", timeToSami(v.StartValue)),
 		}
 		sPNode := &html.Node{
 			Type: html.ElementNode,
-			Data: fmt.Sprintf("<P Class=ENCC>\n"),
+			Data: "P Class=ENCC",
 		}
 		sPNode.AppendChild(&html.Node{
 			Type: html.TextNode,
@@ -135,15 +135,15 @@ func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
 
 		sEndNode := &html.Node{
 			Type: html.ElementNode,
-			Data: fmt.Sprintf("<SYNC Start=%s>", timeToSami(v.EndValue)),
+			Data: fmt.Sprintf("SYNC Start=%s", timeToSami(v.EndValue)),
 		}
 		sPNode = &html.Node{
 			Type: html.ElementNode,
-			Data: fmt.Sprintf("<P Class=ENCC>\n"),
+			Data: "P Class=ENCC",
 		}
 		sPNode.AppendChild(&html.Node{
 			Type: html.TextNode,
-			Data: fmt.Sprintf("&nbsp;\n"),
+			Data: "&nbsp;\n",
 		})
 		sEndNode.AppendChild(sPNode)
 		doc.AppendChild(sEndNode)
