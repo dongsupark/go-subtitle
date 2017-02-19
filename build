@@ -16,7 +16,8 @@ if [ ! $(command -v go 2>/dev/null) ]; then
 fi
 
 echo "Building..."
-CGO_ENABLED=1 go build -o go-subtitle -a -ldflags "${GLDFLAGS}" ${REPO_PATH}
+CGO_ENABLED=0 go build -o go-subtitle -a -ldflags "${GLDFLAGS}" ${REPO_PATH}
+CGO_ENABLED=0 go build -o go-subtitle-web -a -ldflags "${GLDFLAGS}" ${REPO_PATH}/web
 
 mkdir --parent ./bin
-mv go-subtitle ./bin/
+mv go-subtitle go-subtitle-web ./bin/

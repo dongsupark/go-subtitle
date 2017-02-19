@@ -15,9 +15,9 @@
 package main
 
 import (
-	"github.com/dongsupark/go-subtitle/cli"
+	"github.com/dongsupark/go-subtitle/backend"
 )
 
 func main() {
-	cli.Execute()
+	backend.Execute()
 }
