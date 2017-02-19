@@ -84,7 +84,7 @@ func doWriteFile(outputFileName string, outSt *subtitle.Subtitle) error {
 
 	err := writer(outputFileName, *outSt)
 	if err != nil {
-		return fmt.Errorf("parse error reading %s: %v\n", readFileName, err)
+		return fmt.Errorf("parse error reading %s: %v\n", outputFileName, err)
 	}
 
 	fmt.Printf("Wrote text to subtitle file %s\n", outputFileName)

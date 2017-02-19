@@ -53,7 +53,7 @@ func runReadCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	subtitleFormat := parser.GetParserFormat(inputFileName)
+	subtitleFormat := parser.GetParserFormat(readFileName)
 	if subtitleFormat == "" {
 		fmt.Println("unable to get subtitle format")
 		return

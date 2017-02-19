@@ -54,7 +54,7 @@ func runWriteCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	subtitleFormat := parser.GetParserFormat(outputFileName)
+	subtitleFormat := parser.GetParserFormat(writeFileName)
 	if subtitleFormat == "" {
 		fmt.Println("unable to get subtitle format")
 		return
