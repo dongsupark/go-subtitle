@@ -75,8 +75,8 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 			pkg.StringToInt(substrs[1]), pkg.StringToInt(substrs[2]),
 			pkg.StringToInt(substrs[3]), pkg.StringToInt(substrs[4]))
 		se.EndValue = pkg.ComposeTimeDuration(
-			pkg.StringToInt(substrs[1]), pkg.StringToInt(substrs[2]),
-			pkg.StringToInt(substrs[3]), pkg.StringToInt(substrs[4]))
+			pkg.StringToInt(substrs[5]), pkg.StringToInt(substrs[6]),
+			pkg.StringToInt(substrs[7]), pkg.StringToInt(substrs[8]))
 
 		se.Text = textLine
 
