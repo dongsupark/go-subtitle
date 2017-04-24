@@ -22,8 +22,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/golang/glog"
-
 	"github.com/dongsupark/go-subtitle/pkg"
 	"github.com/dongsupark/go-subtitle/subtitle"
 )
@@ -38,7 +36,7 @@ type SubripFormat struct {
 }
 
 func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
-	glog.Infoln("reading subrip file")
+	fmt.Printf("reading subrip file %s\n", fileName)
 
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -84,7 +82,7 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		glog.Infof("cannot parse data from %s\n", fileName)
+		fmt.Printf("cannot parse data from %s\n", fileName)
 		return subtitle.Subtitle{}, err
 	}
 
@@ -92,7 +90,7 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 }
 
 func (sr *SubripFormat) Write(fileName string, insub subtitle.Subtitle) error {
-	glog.Infoln("writing subrip file")
+	fmt.Printf("writing subrip file %s\n", fileName)
 
 	dataStr := ""
 	count := 1

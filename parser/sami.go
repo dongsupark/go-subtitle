@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"golang.org/x/net/html"
 
 	"github.com/dongsupark/go-subtitle/pkg"
@@ -45,7 +44,7 @@ type SamiFormat struct {
 }
 
 func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
-	glog.Infoln("reading sami file")
+	fmt.Printf("reading sami file %s\n", fileName)
 
 	fh, err := os.Open(fileName)
 	if err != nil {
@@ -59,7 +58,7 @@ func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
 
 	doc, err := html.Parse(fh)
 	if err != nil {
-		glog.Infof("cannot parse data from %s\n", fileName)
+		fmt.Printf("cannot parse data from %s\n", fileName)
 		return subtitle.Subtitle{}, err
 	}
 
@@ -110,7 +109,7 @@ func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
 }
 
 func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
-	glog.Infoln("writing sami file")
+	fmt.Printf("writing sami file %s\n", fileName)
 
 	doc := &html.Node{
 		Type: html.DocumentNode,
