@@ -33,3 +33,12 @@ func ComposeTimeDuration(hourNum, minNum, secNum, msecNum int) time.Duration {
 		(time.Duration(secNum) * time.Second) +
 		(time.Duration(msecNum) * time.Millisecond)
 }
+
+func DurationToClockNums(dur time.Duration) (int, int, int, int) {
+	eh := int(dur.Hours())
+	em := int(dur.Minutes())
+	es := int(dur.Seconds())
+	en := int(dur.Nanoseconds())
+
+	return eh, (em - (eh * 60)), (es - (em * 60)), (en / 1000 / 1000 % 1000)
+}

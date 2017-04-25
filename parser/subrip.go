@@ -35,6 +35,8 @@ type SubripFormat struct {
 }
 
 func (sr *SubripFormat) Read(inputData string) (subtitle.Subtitle, error) {
+	inputData = strings.TrimSpace(inputData)
+
 	scanner := bufio.NewScanner(strings.NewReader(inputData))
 	var st subtitle.Subtitle
 	for scanner.Scan() {
@@ -88,10 +90,11 @@ func (sr *SubripFormat) Write(insub subtitle.Subtitle) (string, error) {
 		count++
 	}
 
+	dataStr = strings.TrimSpace(dataStr)
 	return dataStr, nil
 }
 
 func timeToSubrip(inTime time.Duration) string {
-	return fmt.Sprintf("%02d:%02d:%02d,%03d",
-		int(inTime.Hours()), int(inTime.Minutes()), int(inTime.Seconds()), int(inTime.Nanoseconds()/1000%1000))
+	hour, min, sec, msec := pkg.DurationToClockNums(inTime)
+	return fmt.Sprintf("%02d:%02d:%02d,%03d", hour, min, sec, msec)
 }

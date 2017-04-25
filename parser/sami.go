@@ -47,6 +47,8 @@ func (sr *SamiFormat) Read(inputData string) (subtitle.Subtitle, error) {
 	se := new(subtitle.SubtitleEntry)
 	ss := SamiStateType(SamiStateInit)
 
+	inputData = strings.TrimSpace(inputData)
+
 	doc, err := html.Parse(strings.NewReader(inputData))
 	if err != nil {
 		return subtitle.Subtitle{}, err
@@ -141,7 +143,7 @@ func (sr *SamiFormat) Write(insub subtitle.Subtitle) (string, error) {
 		return "", err
 	}
 
-	return b.String(), nil
+	return strings.TrimSpace(b.String()), nil
 }
 
 // strip comments in every text node
