@@ -16,6 +16,8 @@ package parser
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -37,7 +39,7 @@ var parserMap = map[string]interface{}{
 }
 
 type ReadFunc func(string) (subtitle.Subtitle, error)
-type WriteFunc func(string, subtitle.Subtitle) error
+type WriteFunc func(subtitle.Subtitle) (string, error)
 
 func GetParserReader(formatName string) ReadFunc {
 	switch formatName {
@@ -93,6 +95,14 @@ func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
 		return nil, fmt.Errorf("unable to get parser reader")
 	}
 
+	fmt.Printf("reading file %s\n", readFileName)
+
+	fh, err := os.Open(readFileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open file %s: %v\n", readFileName, err)
+	}
+	defer fh.Close()
+
 	outSt, err := reader(readFileName)
 	if err != nil {
 		return nil, fmt.Errorf("parse error reading %s: %v\n", readFileName, err)
@@ -112,9 +122,16 @@ func WriteSubToFile(writeFileName string, inSt subtitle.Subtitle) error {
 		return fmt.Errorf("unable to get parser writer")
 	}
 
-	err := writer(writeFileName, inSt)
+	writeData, err := writer(inSt)
 	if err != nil {
 		return fmt.Errorf("parse error writing %s: %v\n", writeFileName, err)
+	}
+
+	fmt.Printf("writing file %s\n", writeFileName)
+
+	err = ioutil.WriteFile(writeFileName, []byte(writeData), 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write file %s: %v\n", writeFileName, err)
 	}
 
 	return nil

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -43,22 +42,13 @@ type SamiFormat struct {
 	TypeName string
 }
 
-func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
-	fmt.Printf("reading sami file %s\n", fileName)
-
-	fh, err := os.Open(fileName)
-	if err != nil {
-		return subtitle.Subtitle{}, err
-	}
-	defer fh.Close()
-
+func (sr *SamiFormat) Read(inputData string) (subtitle.Subtitle, error) {
 	var st subtitle.Subtitle
 	se := new(subtitle.SubtitleEntry)
 	ss := SamiStateType(SamiStateInit)
 
-	doc, err := html.Parse(fh)
+	doc, err := html.Parse(strings.NewReader(inputData))
 	if err != nil {
-		fmt.Printf("cannot parse data from %s\n", fileName)
 		return subtitle.Subtitle{}, err
 	}
 
@@ -108,9 +98,7 @@ func (sr *SamiFormat) Read(fileName string) (subtitle.Subtitle, error) {
 	return st, nil
 }
 
-func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
-	fmt.Printf("writing sami file %s\n", fileName)
-
+func (sr *SamiFormat) Write(insub subtitle.Subtitle) (string, error) {
 	doc := &html.Node{
 		Type: html.DocumentNode,
 	}
@@ -148,17 +136,12 @@ func (sr *SamiFormat) Write(fileName string, insub subtitle.Subtitle) error {
 		doc.AppendChild(sEndNode)
 	}
 
-	fh, err := os.Create(fileName)
-	if err != nil {
-		return err
-	}
-	defer fh.Close()
-
-	if html.Render(fh, doc); err != nil {
-		return err
+	b := new(bytes.Buffer)
+	if err := html.Render(b, doc); err != nil {
+		return "", err
 	}
 
-	return nil
+	return b.String(), nil
 }
 
 // strip comments in every text node

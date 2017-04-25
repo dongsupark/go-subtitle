@@ -17,9 +17,8 @@ package parser
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/dongsupark/go-subtitle/pkg"
@@ -35,16 +34,8 @@ type SubripFormat struct {
 	TypeName string
 }
 
-func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
-	fmt.Printf("reading subrip file %s\n", fileName)
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		return subtitle.Subtitle{}, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+func (sr *SubripFormat) Read(inputData string) (subtitle.Subtitle, error) {
+	scanner := bufio.NewScanner(strings.NewReader(inputData))
 	var st subtitle.Subtitle
 	for scanner.Scan() {
 		timeLine := scanner.Text()
@@ -82,16 +73,13 @@ func (sr *SubripFormat) Read(fileName string) (subtitle.Subtitle, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("cannot parse data from %s\n", fileName)
 		return subtitle.Subtitle{}, err
 	}
 
 	return st, nil
 }
 
-func (sr *SubripFormat) Write(fileName string, insub subtitle.Subtitle) error {
-	fmt.Printf("writing subrip file %s\n", fileName)
-
+func (sr *SubripFormat) Write(insub subtitle.Subtitle) (string, error) {
 	dataStr := ""
 	count := 1
 	for _, v := range insub.Subtitles {
@@ -100,12 +88,7 @@ func (sr *SubripFormat) Write(fileName string, insub subtitle.Subtitle) error {
 		count++
 	}
 
-	err := ioutil.WriteFile(fileName, []byte(dataStr), 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return dataStr, nil
 }
 
 func timeToSubrip(inTime time.Duration) string {

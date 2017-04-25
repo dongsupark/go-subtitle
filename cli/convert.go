@@ -16,6 +16,7 @@ package cli
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 
@@ -57,6 +58,14 @@ func doReadFile(inputFileName string) (*subtitle.Subtitle, error) {
 		return nil, fmt.Errorf("unable to get parser reader\n")
 	}
 
+	fmt.Printf("reading file %s\n", inputFileName)
+
+	fh, err := os.Open(inputFileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open file %s: %v\n", inputFileName, err)
+	}
+	defer fh.Close()
+
 	outSt, err := reader(inputFileName)
 	if err != nil {
 		return nil, fmt.Errorf("parse error converting %s: %v\n", inputFileName, err)
@@ -82,9 +91,16 @@ func doWriteFile(outputFileName string, outSt *subtitle.Subtitle) error {
 		return fmt.Errorf("unable to get parser writer\n")
 	}
 
-	err := writer(outputFileName, *outSt)
+	outputData, err := writer(*outSt)
 	if err != nil {
 		return fmt.Errorf("parse error reading %s: %v\n", outputFileName, err)
+	}
+
+	fmt.Printf("writing file %s\n", outputFileName)
+
+	err = ioutil.WriteFile(outputFileName, []byte(outputData), 0644)
+	if err != nil {
+		return fmt.Errorf("unable to write file %s: %v\n", outputFileName, err)
 	}
 
 	fmt.Printf("Wrote text to subtitle file %s\n", outputFileName)
