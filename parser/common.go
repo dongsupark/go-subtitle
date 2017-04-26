@@ -17,7 +17,6 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -97,13 +96,12 @@ func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
 
 	fmt.Printf("reading file %s\n", readFileName)
 
-	fh, err := os.Open(readFileName)
+	readBuf, err := ioutil.ReadFile(readFileName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open file %s: %v\n", readFileName, err)
 	}
-	defer fh.Close()
 
-	outSt, err := reader(readFileName)
+	outSt, err := reader(string(readBuf))
 	if err != nil {
 		return nil, fmt.Errorf("parse error reading %s: %v\n", readFileName, err)
 	}
