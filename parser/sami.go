@@ -15,7 +15,9 @@
 package parser
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -36,6 +38,35 @@ const (
 	SamiStateForceQuit = 99
 )
 
+var textElemTags = []string{
+	"i",
+	"b",
+}
+
+func matchTextElemTag(input string) bool {
+	for _, e := range textElemTags {
+		if input == e {
+			return true
+		}
+	}
+	return false
+}
+
+var legitElemTags = []string{
+	"&nbsp",
+	"i>",
+	"b>",
+}
+
+func hasLegitElemTag(input string) bool {
+	for _, e := range legitElemTags {
+		if strings.Contains(input, e) {
+			return true
+		}
+	}
+	return false
+}
+
 type SamiStateType int
 
 type SamiFormat struct {
@@ -45,57 +76,96 @@ type SamiFormat struct {
 func (sr *SamiFormat) Read(inputData string) (subtitle.Subtitle, error) {
 	var st subtitle.Subtitle
 	se := new(subtitle.SubtitleEntry)
-	ss := SamiStateType(SamiStateInit)
+	samiState := SamiStateType(SamiStateInit)
 
 	inputData = strings.TrimSpace(inputData)
 
-	doc, err := html.Parse(strings.NewReader(inputData))
-	if err != nil {
-		return subtitle.Subtitle{}, err
-	}
-
 	renl := regexp.MustCompile("\\n")
 
-	var parseNode func(*html.Node, SamiStateType)
-	parseNode = func(n *html.Node, samiState SamiStateType) {
-		if n.Type == html.ElementNode && n.Data == "sync" {
-			for _, a := range n.Attr {
-				if a.Key == "start" {
-					if samiState == SamiStateSyncStart || samiState == SamiStateText {
-						se.EndValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(a.Val))
-						samiState = SamiStateSyncEnd
+	z := html.NewTokenizer(strings.NewReader(inputData))
+	prevStartValue := time.Duration(0)
+	for {
+		tok := z.Next()
+		switch tok {
+		case html.ErrorToken:
+			if z.Err() == io.EOF {
+				break
+			}
+			return subtitle.Subtitle{}, fmt.Errorf("got error token")
+		case html.StartTagToken:
+			tn, hasAttr := z.TagName()
+			tnStr := string(tn)
+
+			if hasAttr && strings.ToLower(tnStr) == "sync" {
+				key, value, _ := z.TagAttr()
+				if strings.ToLower(string(key)) == "start" {
+					if samiState == SamiStateSyncEnd {
+						se.EndValue = prevStartValue
+						samiState = SamiStateInit
 
 						st.Subtitles = append(st.Subtitles, *se)
 						se = new(subtitle.SubtitleEntry)
-					} else {
-						se.StartValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(a.Val))
+					}
+
+					if samiState == SamiStateInit {
+						se.StartValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value)))
+						prevStartValue = se.StartValue
 						samiState = SamiStateSyncStart
+					} else if samiState == SamiStateSyncStart || samiState == SamiStateText {
+						se.EndValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value)))
+						samiState = SamiStateInit
+
+						st.Subtitles = append(st.Subtitles, *se)
+						se = new(subtitle.SubtitleEntry)
 					}
 					break
 				}
 			}
-		}
-		if n.Type == html.TextNode {
-			n.Data = stripComments(n.Data)
 
-			inText := strings.TrimSpace(renl.ReplaceAllString(n.Data, " "))
-			if len(inText) == 0 {
-				if samiState == SamiStateSyncEnd {
-					samiState = SamiStateInit
-				}
-			} else {
-				se.Text = n.Data
-				samiState = SamiStateText
+			// consider this node as a text node with an in-text tag
+			if matchTextElemTag(tnStr) {
+				se.Text += fmt.Sprintf("<%s>", tnStr)
 			}
+		case html.TextToken:
+			toSyncEnd := false
+			parsed := ""
+
+			if strings.Contains(string(z.Raw()), "&nbsp") {
+				parsed = string(z.Raw())
+				toSyncEnd = true
+			} else {
+				parsed = string(z.Text())
+			}
+
+			if samiState == SamiStateSyncStart || samiState == SamiStateInit {
+				textStr := stripComments(parsed)
+
+				inText := strings.TrimSpace(renl.ReplaceAllString(textStr, " "))
+				if len(inText) > 0 {
+					se.Text += parsed
+
+					if toSyncEnd {
+						samiState = SamiStateSyncEnd
+					} else {
+						samiState = SamiStateText
+					}
+				}
+			}
+		case html.EndTagToken:
+			tn, _ := z.TagName()
+			tnStr := string(tn)
+
+			if matchTextElemTag(tnStr) {
+				se.Text += fmt.Sprintf("</%s>", tnStr)
+			}
+		case html.SelfClosingTagToken, html.CommentToken, html.DoctypeToken:
+			// do nothing
 		}
-		if n.Type == html.CommentNode {
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			parseNode(c, samiState)
+
+		if z.Err() == io.EOF {
+			break
 		}
 	}
-	parseNode(doc, ss)
 
 	return st, nil
 }
@@ -105,7 +175,7 @@ func (sr *SamiFormat) Write(insub subtitle.Subtitle) (string, error) {
 		Type: html.DocumentNode,
 	}
 	for _, v := range insub.Subtitles {
-		htmlText := strings.Replace(v.Text, "\n", "<br>", -1)
+		htmlText := strings.TrimSpace(html.UnescapeString(v.Text))
 
 		sStartNode := &html.Node{
 			Type: html.ElementNode,
@@ -139,7 +209,7 @@ func (sr *SamiFormat) Write(insub subtitle.Subtitle) (string, error) {
 	}
 
 	b := new(bytes.Buffer)
-	if err := html.Render(b, doc); err != nil {
+	if err := samiRender(b, doc); err != nil {
 		return "", err
 	}
 
@@ -167,5 +237,233 @@ func stripComments(inStr string) string {
 
 func timeToSami(inTime time.Duration) string {
 	totalSec := inTime.Seconds()
-	return fmt.Sprintf("%04d%03d", int(totalSec), int(inTime.Nanoseconds()/1000/1000%1000))
+	totalMsec := (int(totalSec) * 1000) + int(inTime.Nanoseconds()/1000/1000%1000)
+	return fmt.Sprintf("%d", totalMsec)
+}
+
+type writer interface {
+	io.Writer
+	io.ByteWriter
+	WriteString(string) (int, error)
+}
+
+func samiRender(w io.Writer, n *html.Node) error {
+	if x, ok := w.(writer); ok {
+		return doSamiRender(x, n)
+	}
+	buf := bufio.NewWriter(w)
+	if err := doSamiRender(buf, n); err != nil {
+		return err
+	}
+	return buf.Flush()
+}
+
+func doSamiRender(w writer, n *html.Node) error {
+	// Render non-element nodes; these are the easy cases.
+	switch n.Type {
+	case html.ErrorNode:
+		return errors.New("html: cannot render an ErrorNode node")
+	case html.TextNode:
+		// NOTE: we need to prevent several strings from being escaped,
+		// for example, &nbsp", a special termination tag in sami format.
+		if hasLegitElemTag(n.Data) {
+			_, err := w.WriteString(n.Data)
+			return err
+		} else {
+			return escape(w, n.Data)
+		}
+	case html.DocumentNode:
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if err := doSamiRender(w, c); err != nil {
+				return err
+			}
+		}
+		return nil
+	case html.ElementNode:
+		// No-op.
+	case html.CommentNode:
+		if _, err := w.WriteString("<!--"); err != nil {
+			return err
+		}
+		if _, err := w.WriteString(n.Data); err != nil {
+			return err
+		}
+		if _, err := w.WriteString("-->"); err != nil {
+			return err
+		}
+		return nil
+	case html.DoctypeNode:
+		if _, err := w.WriteString("<!DOCTYPE "); err != nil {
+			return err
+		}
+		if _, err := w.WriteString(n.Data); err != nil {
+			return err
+		}
+		if n.Attr != nil {
+			var p, s string
+			for _, a := range n.Attr {
+				switch a.Key {
+				case "public":
+					p = a.Val
+				case "system":
+					s = a.Val
+				}
+			}
+			if p != "" {
+				if _, err := w.WriteString(" PUBLIC "); err != nil {
+					return err
+				}
+				if err := writeQuoted(w, p); err != nil {
+					return err
+				}
+				if s != "" {
+					if err := w.WriteByte(' '); err != nil {
+						return err
+					}
+					if err := writeQuoted(w, s); err != nil {
+						return err
+					}
+				}
+			} else if s != "" {
+				if _, err := w.WriteString(" SYSTEM "); err != nil {
+					return err
+				}
+				if err := writeQuoted(w, s); err != nil {
+					return err
+				}
+			}
+		}
+		return w.WriteByte('>')
+	default:
+		return errors.New("html: unknown node type")
+	}
+
+	// Render the <xxx> opening tag.
+	if err := w.WriteByte('<'); err != nil {
+		return err
+	}
+	if _, err := w.WriteString(n.Data); err != nil {
+		return err
+	}
+	for _, a := range n.Attr {
+		if err := w.WriteByte(' '); err != nil {
+			return err
+		}
+		if a.Namespace != "" {
+			if _, err := w.WriteString(a.Namespace); err != nil {
+				return err
+			}
+			if err := w.WriteByte(':'); err != nil {
+				return err
+			}
+		}
+		if _, err := w.WriteString(a.Key); err != nil {
+			return err
+		}
+		if _, err := w.WriteString(`="`); err != nil {
+			return err
+		}
+		if err := escape(w, a.Val); err != nil {
+			return err
+		}
+		if err := w.WriteByte('"'); err != nil {
+			return err
+		}
+	}
+	if err := w.WriteByte('>'); err != nil {
+		return err
+	}
+
+	// Add initial newline where there is danger of a newline beging ignored.
+	if c := n.FirstChild; c != nil && c.Type == html.TextNode && strings.HasPrefix(c.Data, "\n") {
+		switch n.Data {
+		case "pre", "listing", "textarea":
+			if err := w.WriteByte('\n'); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Render any child nodes.
+	switch n.Data {
+	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.TextNode {
+				if _, err := w.WriteString(c.Data); err != nil {
+					return err
+				}
+			} else {
+				if err := doSamiRender(w, c); err != nil {
+					return err
+				}
+			}
+		}
+	default:
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if err := doSamiRender(w, c); err != nil {
+				return err
+			}
+		}
+	}
+
+	// NOTE: don't render a closing tag at all, for sami files.
+	return nil
+}
+
+const escapedChars = "&'<>\"\r"
+
+func escape(w writer, s string) error {
+	i := strings.IndexAny(s, escapedChars)
+	for i != -1 {
+		if _, err := w.WriteString(s[:i]); err != nil {
+			return err
+		}
+		var esc string
+		switch s[i] {
+		case '&':
+			esc = "&amp;"
+		case '\'':
+			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+			esc = "&#39;"
+		case '<':
+			esc = "&lt;"
+		case '>':
+			esc = "&gt;"
+		case '"':
+			// "&#34;" is shorter than "&quot;".
+			esc = "&#34;"
+		case '\r':
+			esc = "&#13;"
+		default:
+			panic("unrecognized escape character")
+		}
+		s = s[i+1:]
+		if _, err := w.WriteString(esc); err != nil {
+			return err
+		}
+		i = strings.IndexAny(s, escapedChars)
+	}
+	_, err := w.WriteString(s)
+	return err
+}
+
+// writeQuoted writes s to w surrounded by quotes. Normally it will use double
+// quotes, but if s contains a double quote, it will use single quotes.
+// It is used for writing the identifiers in a doctype declaration.
+// In valid HTML, they can't contain both types of quotes.
+func writeQuoted(w writer, s string) error {
+	var q byte = '"'
+	if strings.Contains(s, `"`) {
+		q = '\''
+	}
+	if err := w.WriteByte(q); err != nil {
+		return err
+	}
+	if _, err := w.WriteString(s); err != nil {
+		return err
+	}
+	if err := w.WriteByte(q); err != nil {
+		return err
+	}
+	return nil
 }
