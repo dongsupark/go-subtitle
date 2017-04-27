@@ -77,13 +77,89 @@ func (sr *SamiFormat) Read(inputData string) (subtitle.Subtitle, error) {
 	var st subtitle.Subtitle
 	se := new(subtitle.SubtitleEntry)
 	samiState := SamiStateType(SamiStateInit)
+	prevStartValue := time.Duration(0)
 
 	inputData = strings.TrimSpace(inputData)
 
 	renl := regexp.MustCompile("\\n")
 
+	storeGetNewSubEntry := func(endValue time.Duration) *subtitle.SubtitleEntry {
+		se.EndValue = endValue
+		samiState = SamiStateInit
+
+		st.Subtitles = append(st.Subtitles, *se)
+		return new(subtitle.SubtitleEntry)
+	}
+
+	parseStartTagToken := func(z *html.Tokenizer) bool {
+		tn, hasAttr := z.TagName()
+		tnStr := string(tn)
+
+		if hasAttr && strings.ToLower(tnStr) == "sync" {
+			key, value, _ := z.TagAttr()
+			if strings.ToLower(string(key)) == "start" {
+				if samiState == SamiStateSyncEnd {
+					se = storeGetNewSubEntry(prevStartValue)
+					// fall through the SamiStateInit case below
+				}
+
+				if samiState == SamiStateInit {
+					se.StartValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value)))
+					prevStartValue = se.StartValue
+					samiState = SamiStateSyncStart
+				} else if samiState == SamiStateSyncStart || samiState == SamiStateText {
+					se = storeGetNewSubEntry(pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value))))
+				}
+				return true
+			}
+		}
+
+		// consider this node as a text node with an in-text tag
+		if matchTextElemTag(tnStr) {
+			se.Text += fmt.Sprintf("<%s>", tnStr)
+		}
+
+		return false
+	}
+
+	parseEndTagToken := func(z *html.Tokenizer) {
+		tn, _ := z.TagName()
+		tnStr := string(tn)
+
+		if matchTextElemTag(tnStr) {
+			se.Text += fmt.Sprintf("</%s>", tnStr)
+		}
+	}
+
+	parseTextToken := func(z *html.Tokenizer) {
+		toSyncEnd := false
+		parsed := ""
+
+		if strings.Contains(string(z.Raw()), "&nbsp") {
+			parsed = string(z.Raw())
+			toSyncEnd = true
+		} else {
+			parsed = string(z.Text())
+		}
+
+		if samiState == SamiStateSyncStart || samiState == SamiStateInit {
+			textStr := stripComments(parsed)
+
+			inText := strings.TrimSpace(renl.ReplaceAllString(textStr, " "))
+			if len(inText) > 0 {
+				se.Text += parsed
+
+				if toSyncEnd {
+					samiState = SamiStateSyncEnd
+				} else {
+					samiState = SamiStateText
+				}
+			}
+		}
+	}
+
+	/* the main loop for read and parse */
 	z := html.NewTokenizer(strings.NewReader(inputData))
-	prevStartValue := time.Duration(0)
 	for {
 		tok := z.Next()
 		switch tok {
@@ -93,71 +169,13 @@ func (sr *SamiFormat) Read(inputData string) (subtitle.Subtitle, error) {
 			}
 			return subtitle.Subtitle{}, fmt.Errorf("got error token")
 		case html.StartTagToken:
-			tn, hasAttr := z.TagName()
-			tnStr := string(tn)
-
-			if hasAttr && strings.ToLower(tnStr) == "sync" {
-				key, value, _ := z.TagAttr()
-				if strings.ToLower(string(key)) == "start" {
-					if samiState == SamiStateSyncEnd {
-						se.EndValue = prevStartValue
-						samiState = SamiStateInit
-
-						st.Subtitles = append(st.Subtitles, *se)
-						se = new(subtitle.SubtitleEntry)
-					}
-
-					if samiState == SamiStateInit {
-						se.StartValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value)))
-						prevStartValue = se.StartValue
-						samiState = SamiStateSyncStart
-					} else if samiState == SamiStateSyncStart || samiState == SamiStateText {
-						se.EndValue = pkg.ComposeTimeDuration(0, 0, 0, pkg.StringToInt(string(value)))
-						samiState = SamiStateInit
-
-						st.Subtitles = append(st.Subtitles, *se)
-						se = new(subtitle.SubtitleEntry)
-					}
-					break
-				}
-			}
-
-			// consider this node as a text node with an in-text tag
-			if matchTextElemTag(tnStr) {
-				se.Text += fmt.Sprintf("<%s>", tnStr)
+			if toBreak := parseStartTagToken(z); toBreak {
+				break
 			}
 		case html.TextToken:
-			toSyncEnd := false
-			parsed := ""
-
-			if strings.Contains(string(z.Raw()), "&nbsp") {
-				parsed = string(z.Raw())
-				toSyncEnd = true
-			} else {
-				parsed = string(z.Text())
-			}
-
-			if samiState == SamiStateSyncStart || samiState == SamiStateInit {
-				textStr := stripComments(parsed)
-
-				inText := strings.TrimSpace(renl.ReplaceAllString(textStr, " "))
-				if len(inText) > 0 {
-					se.Text += parsed
-
-					if toSyncEnd {
-						samiState = SamiStateSyncEnd
-					} else {
-						samiState = SamiStateText
-					}
-				}
-			}
+			parseTextToken(z)
 		case html.EndTagToken:
-			tn, _ := z.TagName()
-			tnStr := string(tn)
-
-			if matchTextElemTag(tnStr) {
-				se.Text += fmt.Sprintf("</%s>", tnStr)
-			}
+			parseEndTagToken(z)
 		case html.SelfClosingTagToken, html.CommentToken, html.DoctypeToken:
 			// do nothing
 		}
