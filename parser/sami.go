@@ -241,14 +241,25 @@ func timeToSami(inTime time.Duration) string {
 	return fmt.Sprintf("%d", totalMsec)
 }
 
-type writer interface {
+// The parts below maily came from golang.org/x/net/html.
+// Currently it's not possible to make use of native html.Render(),
+// because that implicitly escapes every special character like '&nbsp',
+// which needs to be intact in sami subtitles.
+// So for now, we need to write our own sami renderer.
+//
+// Differences from the original renderer are like the following:
+//  * handle exceptional legitimate cases by calling hasLegitElemTag(),
+//    in order to pretent several strings from being escaped.
+//  * do not add closing tags like '</start>', because that's not necessary
+//    in sami format.
+type samiWriter interface {
 	io.Writer
 	io.ByteWriter
 	WriteString(string) (int, error)
 }
 
 func samiRender(w io.Writer, n *html.Node) error {
-	if x, ok := w.(writer); ok {
+	if x, ok := w.(samiWriter); ok {
 		return doSamiRender(x, n)
 	}
 	buf := bufio.NewWriter(w)
@@ -258,7 +269,7 @@ func samiRender(w io.Writer, n *html.Node) error {
 	return buf.Flush()
 }
 
-func doSamiRender(w writer, n *html.Node) error {
+func doSamiRender(w samiWriter, n *html.Node) error {
 	// Render non-element nodes; these are the easy cases.
 	switch n.Type {
 	case html.ErrorNode:
@@ -270,7 +281,7 @@ func doSamiRender(w writer, n *html.Node) error {
 			_, err := w.WriteString(n.Data)
 			return err
 		} else {
-			return escape(w, n.Data)
+			return escapeString(w, n.Data)
 		}
 	case html.DocumentNode:
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -363,7 +374,7 @@ func doSamiRender(w writer, n *html.Node) error {
 		if _, err := w.WriteString(`="`); err != nil {
 			return err
 		}
-		if err := escape(w, a.Val); err != nil {
+		if err := escapeString(w, a.Val); err != nil {
 			return err
 		}
 		if err := w.WriteByte('"'); err != nil {
@@ -412,7 +423,7 @@ func doSamiRender(w writer, n *html.Node) error {
 
 const escapedChars = "&'<>\"\r"
 
-func escape(w writer, s string) error {
+func escapeString(w samiWriter, s string) error {
 	i := strings.IndexAny(s, escapedChars)
 	for i != -1 {
 		if _, err := w.WriteString(s[:i]); err != nil {
@@ -451,7 +462,7 @@ func escape(w writer, s string) error {
 // quotes, but if s contains a double quote, it will use single quotes.
 // It is used for writing the identifiers in a doctype declaration.
 // In valid HTML, they can't contain both types of quotes.
-func writeQuoted(w writer, s string) error {
+func writeQuoted(w samiWriter, s string) error {
 	var q byte = '"'
 	if strings.Contains(s, `"`) {
 		q = '\''
