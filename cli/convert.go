@@ -16,9 +16,7 @@ package cli
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path"
 
 	"github.com/spf13/cobra"
 
@@ -48,27 +46,9 @@ func init() {
 }
 
 func doReadFile(inputFileName string) (*subtitle.Subtitle, error) {
-	inputFormat := parser.GetParserFormat(path.Base(inputFileName))
-	if inputFormat == "" {
-		return nil, fmt.Errorf("unable to get subtitle format\n")
-	}
-
-	reader := parser.GetParserReader(inputFormat)
-	if reader == nil {
-		return nil, fmt.Errorf("unable to get parser reader\n")
-	}
-
-	fmt.Printf("reading file %s\n", inputFileName)
-
-	fh, err := os.Open(inputFileName)
+	outSt, err := parser.ReadSubFromFile(inputFileName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open file %s: %v\n", inputFileName, err)
-	}
-	defer fh.Close()
-
-	outSt, err := reader(inputFileName)
-	if err != nil {
-		return nil, fmt.Errorf("parse error converting %s: %v\n", inputFileName, err)
+		return nil, err
 	}
 
 	parsedText := ""
@@ -77,30 +57,13 @@ func doReadFile(inputFileName string) (*subtitle.Subtitle, error) {
 	}
 
 	fmt.Printf("Parsed text:\n%s\n", parsedText)
-	return &outSt, nil
+	return outSt, nil
 }
 
-func doWriteFile(outputFileName string, outSt *subtitle.Subtitle) error {
-	outputFormat := parser.GetParserFormat(path.Base(outputFileName))
-	if outputFormat == "" {
-		return fmt.Errorf("unable to get subtitle format\n")
-	}
-
-	writer := parser.GetParserWriter(outputFormat)
-	if writer == nil {
-		return fmt.Errorf("unable to get parser writer\n")
-	}
-
-	outputData, err := writer(*outSt)
+func doWriteFile(outputFileName string, inSt subtitle.Subtitle) error {
+	err := parser.WriteSubToFile(outputFileName, inSt)
 	if err != nil {
-		return fmt.Errorf("parse error reading %s: %v\n", outputFileName, err)
-	}
-
-	fmt.Printf("writing file %s\n", outputFileName)
-
-	err = ioutil.WriteFile(outputFileName, []byte(outputData), 0644)
-	if err != nil {
-		return fmt.Errorf("unable to write file %s: %v\n", outputFileName, err)
+		return err
 	}
 
 	fmt.Printf("Wrote text to subtitle file %s\n", outputFileName)
@@ -129,7 +92,7 @@ func runConvertCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if err := doWriteFile(outputFileName, outSt); err != nil {
+	if err := doWriteFile(outputFileName, *outSt); err != nil {
 		fmt.Printf("Failed to write to %s: %v", outputFileName, err)
 		return
 	}

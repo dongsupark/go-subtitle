@@ -17,6 +17,7 @@ package parser
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -84,7 +85,7 @@ func GetParserFormat(filename string) string {
 }
 
 func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
-	subtitleFormat := GetParserFormat(readFileName)
+	subtitleFormat := GetParserFormat(path.Base(readFileName))
 	if subtitleFormat == "" {
 		return nil, fmt.Errorf("unable to get subtitle format")
 	}
@@ -98,7 +99,7 @@ func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
 
 	readBuf, err := ioutil.ReadFile(readFileName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open file %s: %v\n", readFileName, err)
+		return nil, fmt.Errorf("unable to read file %s: %v\n", readFileName, err)
 	}
 
 	outSt, err := reader(string(readBuf))
@@ -110,7 +111,7 @@ func ReadSubFromFile(readFileName string) (*subtitle.Subtitle, error) {
 }
 
 func WriteSubToFile(writeFileName string, inSt subtitle.Subtitle) error {
-	subtitleFormat := GetParserFormat(writeFileName)
+	subtitleFormat := GetParserFormat(path.Base(writeFileName))
 	if subtitleFormat == "" {
 		return fmt.Errorf("unable to get subtitle format")
 	}
