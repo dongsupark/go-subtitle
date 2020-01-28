@@ -1,0 +1,38 @@
+name: Get latest release version
+on:
+  schedule:
+    - cron:  '42 14 * * *'
+
+jobs:
+  get-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch release version
+        run: |
+          git clone https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git linux
+          pushd linux
+          versionNew=$(git -C linux tag | sed -n "/^v4.19.[0-9]*$/s/^v//p" | sort -ruV | head -1)
+          echo "versionNew = $versionNew"
+          popd
+          curl -L -o cork https://github.com/flatcar-linux/mantle/releases/download/v0.13.1/cork-0.13.1-amd64
+          curl -L -o cork.sig https://github.com/flatcar-linux/mantle/releases/download/v0.13.1/cork-0.13.1-amd64.sig
+          gpg --receive-keys 84C8E771C0DF83DFBFCAAAF03ADA89DEC2507883
+          gpg --verify cork.sig cork
+          chmod +x cork
+          mkdir -p ~/.local/bin
+          mv cork ~/.local/bin
+          export PATH=$PATH:$HOME/.local/bin
+          mkdir -p ~/flatcar-sdk
+          pushd ~/flatcar-sdk
+          cork create
+          git -C src/third_party/coreos-overlay reset --hard github/flatcar-master
+          git -C src/third_party/coreos-overlay config user.name 'Flatcar Buildbot'
+          git -C src/third_party/coreos-overlay config user.email 'buildbot@flatcar-linux.org'
+          mkdir -pm 0700 "chroot/home/core/.ssh"
+          grep -qs '^github.com ' "chroot/home/core/.ssh/known_hosts" ||
+          ssh-keyscan -t rsa github.com >> "chroot/home/core/.ssh/known_hosts"
+          versionOldStringAll=$(cat src/third_party/coreos-overlay/sys-kernel/coreos-sources/Manifest | grep patch-4.19 | cut -f2 -d\ )
+          versionOldString=${versionOldStringAll#patch-}
+          versionOld=${versionOldString%.xz}
+          echo "versionOld = $versionOld"
